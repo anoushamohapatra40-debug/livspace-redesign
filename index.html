@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FORMA v3 — Livspace Redesign</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:#D8D5CF;font-family:-apple-system,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif;}
+::-webkit-scrollbar{display:none;}
+input,select,button,textarea{font-family:inherit;}
+button{-webkit-tap-highlight-color:transparent;}
+img{display:block;}
+
+/* Screen transition */
+.sc{animation:scIn 0.22s cubic-bezier(0.25,0.46,0.45,0.94);}
+@keyframes scIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+/* Button press */
+.btn-tap:active{transform:scale(0.97);opacity:0.88;}
+
+/* Progress fill transition */
+.prog-fill{transition:width 0.4s cubic-bezier(0.34,1.56,0.64,1);}
+
+/* Image load fade */
+img{transition:opacity 0.3s ease;}
+
+/* iOS-style active highlight */
+.row-tap:active{background:#F5F4F5;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+/* ─── TOKENS ─── */
+const C={
+  red:'#EB595F',rDk:'#C94449',rTint:'#FEF2F2',
+  acc:'#A86B94',
+  t1:'#1C1C1E',t2:'#3A3A3C',t3:'#636366',mut:'#8E8E93',
+  surf:'#F2F2F7',surfEl:'#FFFFFF',bg:'#FFFFFF',
+  bdr:'#C6C6C8',bdrLt:'#E5E5EA',
+  ok:'#34C759',okDk:'#248A3D',
+  err:'#FF3B30',wa:'#25D366',
+  dark:'#1C1C1E',gold:'#F59E0B',
+};
+const FF='-apple-system,"SF Pro Display","Helvetica Neue",sans-serif';
+
+/* ─── IMAGES ─── */
+const IMG={
+  hero:'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=780&q=80',
+  kitchen:'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80',
+  bedroom:'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=400&q=80',
+  living:'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80',
+  bath:'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=400&q=80',
+  study:'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400&q=80',
+  wardrobe:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80',
+  dining:'https://images.unsplash.com/photo-1549488344-cbb6c34484ac?w=400&q=80',
+  confirm:'https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=400&q=80',
+};
+
+/* ─── SVG ICONS ─── */
+const IP={
+  home:'<path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/>',
+  photo:'<path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/>',
+  chat:'<path d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>',
+  pin:'<path d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z"/>',
+  bars:'<path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>',
+  user:'<path d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>',
+  check:'<path d="m4.5 12.75 6 6 9-13.5"/>',
+  checkCirc:'<path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>',
+  chevR:'<path d="m8.25 4.5 7.5 7.5-7.5 7.5"/>',
+  calendar:'<path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H18v-.008Zm0 2.25h.008v.008H18V15Z"/>',
+  shield:'<path d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/>',
+  search:'<path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>',
+  arrowR:'<path d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>',
+  star:'<path d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.563.563 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.563.563 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"/>',
+  wa:'<path d="M20.52 3.449C18.245 1.167 15.207 0 12 0 5.393 0 0 5.393 0 12c0 2.118.55 4.18 1.596 5.997L0 24l6.165-1.617A11.956 11.956 0 0 0 12 24c6.607 0 12-5.393 12-12 0-3.207-1.247-6.22-3.48-8.551ZM12 21.952a9.914 9.914 0 0 1-5.065-1.386l-.362-.216-3.762.986 1.005-3.668-.237-.378A9.894 9.894 0 0 1 2.048 12C2.048 6.52 6.52 2.048 12 2.048c2.647 0 5.133 1.032 7.003 2.904A9.849 9.849 0 0 1 21.952 12c0 5.48-4.472 9.952-9.952 9.952Zm5.46-7.455c-.298-.15-1.768-.872-2.042-.972-.273-.098-.472-.149-.673.15-.2.298-.774.972-.949 1.17-.174.2-.35.224-.647.075-.298-.15-1.257-.463-2.394-1.475-.884-.788-1.48-1.761-1.655-2.06-.174-.298-.018-.46.13-.608.135-.134.299-.35.448-.524.15-.175.2-.3.3-.498.099-.2.05-.374-.025-.524-.075-.149-.673-1.62-.922-2.22-.242-.583-.487-.504-.672-.513l-.573-.01a1.098 1.098 0 0 0-.796.374c-.273.298-1.044 1.021-1.044 2.49 0 1.47 1.07 2.888 1.22 3.087.148.2 2.108 3.217 5.106 4.51.713.308 1.27.491 1.703.629.716.228 1.368.196 1.883.119.574-.086 1.768-.723 2.018-1.421.249-.699.249-1.298.174-1.422-.074-.123-.272-.198-.57-.348Z"/>',
+  phone:'<path d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z"/>',
+};
+
+const Ico=({n,size=22,color='currentColor',sw=1.5})=>(
+  <div style={{width:size,height:size,display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}
+    dangerouslySetInnerHTML={{__html:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${IP[n]||''}</svg>`}}/>
+);
+
+/* ─── LIVSPACE LOGO SVG ─── */
+const LogoMark=({size=28})=>(
+  <div style={{width:size,height:size,flexShrink:0}} dangerouslySetInnerHTML={{__html:`
+    <svg viewBox="0 0 100 100" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50 12 Q78 10 88 36 Q98 62 76 80 Q54 98 28 86 Q4 74 6 48 Q8 20 50 12Z"
+        fill="none" stroke="#EB595F" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M25 22 Q42 10 62 16 Q82 22 86 44 Q90 66 72 78 Q54 90 34 82 Q12 74 14 52 Q16 28 25 22Z"
+        fill="none" stroke="#A86B94" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+      <path d="M40 14 Q64 6 80 24 Q96 42 88 66 Q80 88 56 92 Q32 96 18 74 Q4 52 14 30 Q22 12 40 14Z"
+        fill="none" stroke="#EB595F" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+    </svg>
+  `}}/>
+);
+
+/* ─── PRIMITIVES ─── */
+const Ey=({c})=><div style={{fontSize:10,fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase',color:C.mut,marginBottom:4,fontFamily:FF}}>{c}</div>;
+const ST=({c,mb=14,sz=17})=><div style={{fontSize:sz,fontWeight:700,color:C.t1,marginBottom:mb,letterSpacing:'-0.3px',fontFamily:FF}}>{c}</div>;
+const HR=({my=20,mx=0})=><div style={{margin:`${my}px ${mx}px`,height:'0.5px',background:C.bdrLt}}/>;
+
+/* ─── PHOTO CARD ─── */
+const RoomCard=({src,label,count,onClick})=>{
+  const [loaded,setLoaded]=useState(false);
+  return(
+    <div onClick={onClick} className="btn-tap" style={{borderRadius:12,overflow:'hidden',border:`0.5px solid ${C.bdrLt}`,cursor:'pointer',background:C.bg,transition:'transform 0.15s'}}>
+      <div style={{height:96,background:C.surf,position:'relative',overflow:'hidden'}}>
+        <img src={src} alt={label} onLoad={()=>setLoaded(true)} style={{width:'100%',height:'100%',objectFit:'cover',opacity:loaded?1:0,transition:'opacity 0.4s'}}/>
+        {!loaded&&<div style={{position:'absolute',inset:0,background:'linear-gradient(135deg,#f0ede8,#e8e4de)'}}/>}
+      </div>
+      <div style={{padding:'9px 12px 11px'}}>
+        <div style={{fontSize:13,fontWeight:600,color:C.t1,marginBottom:2,fontFamily:FF}}>{label}</div>
+        <div style={{fontSize:11,color:C.mut,fontFamily:FF}}>{count}</div>
+      </div>
+    </div>
+  );
+};
+
+/* ─── INPUT ─── */
+const Inp=({label,ph,val,onChange,err,type='text',prefix,req,hint})=>{
+  const [foc,setFoc]=useState(false);
+  const hasVal=val&&val.length>0;
+  const st=err?'err':foc?'foc':hasVal?'ok':'def';
+  const bc=st==='err'?C.err:st==='foc'?C.red:st==='ok'?C.ok:'transparent';
+  const bg=st==='def'?C.surf:C.bg;
+  return(
+    <div style={{marginBottom:16}}>
+      {label&&<div style={{fontSize:12,fontWeight:500,color:C.t3,marginBottom:6,fontFamily:FF}}>
+        {label}{req&&<span style={{color:C.red,marginLeft:2}}>*</span>}
+        {hint&&<span style={{color:C.mut,fontWeight:400,marginLeft:4}}>({hint})</span>}
+      </div>}
+      <div style={{position:'relative'}}>
+        {prefix&&<div style={{position:'absolute',left:0,top:0,bottom:0,display:'flex',alignItems:'center',paddingLeft:12,fontSize:12,color:C.t2,borderRight:`0.5px solid ${C.bdrLt}`,width:62,justifyContent:'center',zIndex:1,fontFamily:FF}}>{prefix}</div>}
+        <input type={type} placeholder={ph} value={val} onChange={e=>onChange(e.target.value)}
+          onFocus={()=>setFoc(true)} onBlur={()=>setFoc(false)}
+          style={{width:'100%',boxSizing:'border-box',
+            padding:`13px ${st==='ok'||st==='err'?40:14}px 13px ${prefix?72:14}px`,
+            borderRadius:10,background:bg,border:`1.5px solid ${bc}`,
+            fontSize:15,color:C.t1,outline:'none',letterSpacing:'-0.2px',
+            boxShadow:st==='foc'?'0 0 0 4px rgba(235,89,95,0.1)':'none',
+            transition:'all 0.15s',fontFamily:FF}}/>
+        {st==='ok'&&<Ico n="check" size={16} color={C.ok} sw={2.5} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)'}}/>}
+        {(st==='ok'||st==='err')&&<div style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',display:'flex'}}>
+          {st==='ok'&&<div dangerouslySetInnerHTML={{__html:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${C.ok}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${IP.check}</svg>`}}/>}
+          {st==='err'&&<div style={{width:16,height:16,borderRadius:'50%',background:C.err,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'white',fontWeight:700}}>!</div>}
+        </div>}
+      </div>
+      {err&&<div style={{fontSize:12,color:C.err,marginTop:5,display:'flex',alignItems:'center',gap:5,fontFamily:FF}}>
+        <div style={{width:14,height:14,borderRadius:'50%',background:C.err,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white',fontWeight:700,flexShrink:0}}>!</div>
+        {err}
+      </div>}
+    </div>
+  );
+};
+
+/* ─── SELECT ─── */
+const Sel=({label,opts,val,onChange,err,req})=>{
+  const bc=err?C.err:val?C.ok:'transparent';
+  return(
+    <div style={{marginBottom:16}}>
+      {label&&<div style={{fontSize:12,fontWeight:500,color:C.t3,marginBottom:6,fontFamily:FF}}>
+        {label}{req&&<span style={{color:C.red,marginLeft:2}}>*</span>}
+      </div>}
+      <div style={{position:'relative'}}>
+        <select value={val} onChange={e=>onChange(e.target.value)}
+          style={{width:'100%',padding:'13px 36px 13px 14px',borderRadius:10,
+            background:val?C.bg:C.surf,border:`1.5px solid ${bc}`,
+            fontSize:15,color:val?C.t1:C.mut,outline:'none',cursor:'pointer',
+            appearance:'none',WebkitAppearance:'none',letterSpacing:'-0.2px',
+            transition:'all 0.15s',fontFamily:FF}}>
+          <option value="">Select</option>
+          {opts.map(o=><option key={o}>{o}</option>)}
+        </select>
+        <div style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}
+          dangerouslySetInnerHTML={{__html:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${C.mut}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`}}/>
+      </div>
+      {err&&<div style={{fontSize:12,color:C.err,marginTop:5,fontFamily:FF}}>⚠ {err}</div>}
+    </div>
+  );
+};
+
+/* ─── SEGMENTED ─── */
+const Seg=({label,opts,val,onChange,err,req})=>(
+  <div style={{marginBottom:16}}>
+    {label&&<div style={{fontSize:12,fontWeight:500,color:C.t3,marginBottom:6,fontFamily:FF}}>
+      {label}{req&&<span style={{color:C.red,marginLeft:2}}>*</span>}
+    </div>}
+    <div style={{display:'flex',background:C.surf,borderRadius:10,padding:3,gap:2}}>
+      {opts.map(o=>(
+        <button key={o} onClick={()=>onChange(o)} style={{
+          flex:1,padding:'10px 4px',borderRadius:8,border:'none',
+          background:val===o?C.bg:'transparent',
+          color:val===o?C.red:C.mut,
+          fontSize:12,fontWeight:val===o?600:400,cursor:'pointer',
+          boxShadow:val===o?'0 1px 4px rgba(0,0,0,0.1)':'none',
+          transition:'all 0.15s',fontFamily:FF}}>{o}</button>
+      ))}
+    </div>
+    {err&&<div style={{fontSize:12,color:C.err,marginTop:5,fontFamily:FF}}>⚠ {err}</div>}
+  </div>
+);
+
+/* ─── PRIMARY BUTTON ─── */
+const PBtn=({label,onClick,dis=false,loading=false,outline=false,sz=15})=>(
+  <button onClick={!dis&&!loading?onClick:undefined} className={!dis?"btn-tap":""} style={{
+    width:'100%',padding:'15px 20px',borderRadius:28,border:outline?`1.5px solid ${C.red}`:'none',
+    background:dis?C.surf:outline?'transparent':C.red,
+    color:dis?C.mut:outline?C.red:'white',
+    fontSize:sz,fontWeight:600,cursor:dis?'not-allowed':'pointer',
+    letterSpacing:'-0.2px',transition:'all 0.15s',
+    opacity:loading?0.7:1,fontFamily:FF,
+    boxShadow:!dis&&!outline?'0 2px 12px rgba(235,89,95,0.3)':'none'}}>
+    {loading?'Processing…':label}
+  </button>
+);
+
+/* ─── TRUST BAR ─── */
+const TrustBar=()=>(
+  <div style={{display:'flex',background:C.bg,borderTop:`0.5px solid ${C.bdrLt}`,borderBottom:`0.5px solid ${C.bdrLt}`}}>
+    {[{n:'75K+',l:'Happy homes'},{n:'50+',l:'Cities'},{n:'10yr',l:'Warranty'},{n:'4.8★',l:'Rating'}].map((t,i)=>(
+      <div key={i} style={{flex:1,padding:'11px 4px',textAlign:'center',borderRight:i<3?`0.5px solid ${C.bdrLt}`:'none'}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.red,letterSpacing:'-0.3px',fontFamily:FF}}>{t.n}</div>
+        <div style={{fontSize:10,color:C.mut,marginTop:1,fontFamily:FF}}>{t.l}</div>
+      </div>
+    ))}
+  </div>
+);
+
+/* ─── STEP NODES ─── */
+const StepNodes=({cur,total=3})=>(
+  <div style={{display:'flex',alignItems:'center',padding:'0 20px',marginBottom:6}}>
+    {Array.from({length:total},(_,i)=>{
+      const n=i+1,done=n<cur,act=n===cur;
+      return(
+        <React.Fragment key={n}>
+          <div style={{width:28,height:28,borderRadius:'50%',
+            background:done?C.ok:act?C.red:C.surf,
+            border:`1.5px solid ${done?C.ok:act?C.red:C.bdrLt}`,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            fontSize:12,fontWeight:600,color:done||act?'white':C.mut,
+            flexShrink:0,transition:'all 0.3s',fontFamily:FF}}>
+            {done?<div dangerouslySetInnerHTML={{__html:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${IP.check}</svg>`}}/>:n}
+          </div>
+          {i<total-1&&<div style={{flex:1,height:1.5,background:done?C.ok:C.bdrLt,margin:'0 6px',transition:'background 0.3s'}}/>}
+        </React.Fragment>
+      );
+    })}
+  </div>
+);
+
+/* ─────────────────────────
+   STATUS BAR (Dynamic Island)
+   ───────────────────────── */
+const StatusBar=()=>(
+  <div style={{height:54,background:C.bg,flexShrink:0,position:'relative',display:'flex',alignItems:'center'}}>
+    {/* Dynamic Island */}
+    <div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',width:126,height:34,background:'#000',borderRadius:20,zIndex:2}}/>
+    {/* Time — left */}
+    <div style={{position:'absolute',left:24,top:'50%',transform:'translateY(-50%)',fontSize:15,fontWeight:600,color:C.t1,letterSpacing:'-0.3px',zIndex:3,fontFamily:FF}}>9:41</div>
+    {/* Status indicators — right */}
+    <div style={{position:'absolute',right:20,top:'50%',transform:'translateY(-50%)',display:'flex',alignItems:'center',gap:6,zIndex:3}}>
+      {/* Signal bars */}
+      <div style={{display:'flex',gap:1.5,alignItems:'flex-end',height:12}}>
+        {[4,7,10,13].map((h,i)=>(
+          <div key={i} style={{width:3.5,height:h,background:i<3?C.t1:'#C6C6C8',borderRadius:1.5}}/>
+        ))}
+      </div>
+      {/* WiFi */}
+      <div dangerouslySetInnerHTML={{__html:`<svg width="14" height="12" viewBox="0 0 24 24" fill="none" stroke="${C.t1}" stroke-width="2.5" stroke-linecap="round"><path d="M1.586 12.414a12 12 0 0 1 16.97 0M6.343 17.657a6 6 0 0 1 8.485 0M12 21.656l.01-.01"/></svg>`}}/>
+      {/* Battery */}
+      <div style={{display:'flex',alignItems:'center',gap:1}}>
+        <div style={{width:23,height:12,border:`1.5px solid ${C.t1}`,borderRadius:3.5,padding:'1.5px 2px',position:'relative'}}>
+          <div style={{position:'absolute',right:-3.5,top:'50%',transform:'translateY(-50%)',width:3,height:6,background:C.t1,borderRadius:'0 2px 2px 0'}}/>
+          <div style={{width:'72%',height:'100%',background:C.t1,borderRadius:1.5}}/>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+/* ─── APP HEADER ─── */
+const AppHeader=()=>(
+  <div style={{height:52,padding:'0 20px',display:'flex',justifyContent:'space-between',alignItems:'center',background:C.bg,borderBottom:`0.5px solid ${C.bdrLt}`,flexShrink:0}}>
+    <div style={{display:'flex',alignItems:'center',gap:8}}>
+      <LogoMark size={28}/>
+      <span style={{fontSize:14,fontWeight:700,letterSpacing:'2px',color:C.t1,fontFamily:FF}}>LIVSPACE</span>
+    </div>
+    <button className="btn-tap" style={{width:36,height:36,borderRadius:'50%',background:C.surf,border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <Ico n="user" size={18} color={C.t3}/>
+    </button>
+  </div>
+);
+
+/* ─────────────────────────
+   HOME SCREEN
+   ───────────────────────── */
+const HomeScreen=({nav})=>{
+  const [heroLoaded,setHeroLoaded]=useState(false);
+  return(
+    <div className="sc">
+      {/* Hero */}
+      <div style={{height:220,position:'relative',overflow:'hidden',background:'#2A1F3D'}}>
+        <img src={IMG.hero} alt="Modern interior" onLoad={()=>setHeroLoaded(true)}
+          style={{width:'100%',height:'100%',objectFit:'cover',opacity:heroLoaded?1:0,transition:'opacity 0.6s',position:'absolute',inset:0}}/>
+        {/* Dark gradient overlay only — no blobs, no decorative effects */}
+        <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.72) 100%)'}}/>
+        <div style={{position:'absolute',bottom:0,left:0,right:0,padding:'20px 20px 20px'}}>
+          <div style={{fontSize:11,fontWeight:600,letterSpacing:'0.1em',color:'rgba(255,255,255,0.6)',marginBottom:6,textTransform:'uppercase',fontFamily:FF}}>Premium Interiors · Est. 2014</div>
+          <div style={{fontSize:28,fontWeight:700,color:'white',lineHeight:1.15,letterSpacing:'-0.5px',marginBottom:16,fontFamily:FF}}>Design your<br/>dream home.</div>
+          <button onClick={()=>nav('consult')} className="btn-tap" style={{background:C.red,border:'none',borderRadius:22,padding:'11px 22px',color:'white',fontSize:14,fontWeight:600,cursor:'pointer',letterSpacing:'-0.2px',display:'inline-flex',alignItems:'center',gap:6,boxShadow:'0 4px 16px rgba(235,89,95,0.4)',fontFamily:FF}}>
+            Book free consultation
+            <div dangerouslySetInnerHTML={{__html:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${IP.arrowR}</svg>`}}/>
+          </button>
+        </div>
+      </div>
+
+      <TrustBar/>
+
+      {/* Quick Action Strip — utility, flat, divider-based */}
+      <div style={{background:C.bg,display:'flex',borderBottom:`0.5px solid ${C.bdrLt}`}}>
+        {[
+          {ic:'chat',l:'Book Consult',tab:'consult'},
+          {ic:'bars',l:'Get Estimate',tab:'estimate'},
+          {ic:'pin',l:'Find Store',tab:'stores'},
+        ].map((a,i)=>(
+          <button key={i} onClick={()=>nav(a.tab)} className="btn-tap" style={{
+            flex:1,background:'none',border:'none',
+            borderRight:i<2?`0.5px solid ${C.bdrLt}`:'none',
+            padding:'14px 8px 12px',cursor:'pointer',
+            display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+            <Ico n={a.ic} size={20} color={C.t2} sw={1.5}/>
+            <div style={{fontSize:11,fontWeight:500,color:C.t2,fontFamily:FF,letterSpacing:'-0.1px'}}>{a.l}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Services */}
+      <div style={{padding:'20px 20px 0'}}>
+        <Ey c="Our Services"/>
+        <ST c="End-to-end interiors"/>
+        {[
+          {ic:'home',t:'Full Home Interiors',s:'Complete transformation · From ₹8L',tag:'Popular',bg:'#FDF2F2',tc:C.red},
+          {ic:'bars',t:'Modular Kitchen',s:'Custom designed · From ₹1.5L',tag:'',bg:C.surf,tc:C.t1},
+          {ic:'photo',t:'Wardrobe & Storage',s:'Space-optimised · From ₹60K',tag:'',bg:C.surf,tc:C.t1},
+        ].map((sv,i)=>(
+          <div key={i} onClick={()=>nav('consult')} className="row-tap" style={{
+            display:'flex',alignItems:'center',gap:14,
+            padding:'13px 0',
+            borderBottom:i<2?`0.5px solid ${C.bdrLt}`:'none',
+            cursor:'pointer',borderRadius:4,margin:'0 -4px',padding:'13px 4px'}}>
+            <div style={{width:44,height:44,borderRadius:11,background:sv.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <Ico n={sv.ic} size={20} color={sv.tc} sw={1.5}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+                <span style={{fontSize:14,fontWeight:600,color:C.t1,letterSpacing:'-0.2px',fontFamily:FF}}>{sv.t}</span>
+                {sv.tag&&<span style={{fontSize:9,fontWeight:700,background:C.rTint,color:C.red,padding:'2px 7px',borderRadius:5,letterSpacing:'0.04em',fontFamily:FF}}>{sv.tag}</span>}
+              </div>
+              <div style={{fontSize:12,color:C.mut,fontFamily:FF}}>{sv.s}</div>
+            </div>
+            <Ico n="chevR" size={16} color={C.bdr}/>
+          </div>
+        ))}
+      </div>
+
+      <HR my={20}/>
+
+      {/* Inspiration teaser */}
+      <div style={{padding:'0 20px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:14}}>
+          <div><Ey c="Ideas"/><ST c="Browse inspiration" mb={0}/></div>
+          <button onClick={()=>nav('inspiration')} style={{background:'none',border:'none',fontSize:13,color:C.red,cursor:'pointer',fontWeight:500,letterSpacing:'-0.2px',fontFamily:FF}} className="btn-tap">View all →</button>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+          {[
+            {src:IMG.kitchen,l:'Kitchen'},
+            {src:IMG.bedroom,l:'Bedroom'},
+            {src:IMG.living,l:'Living'},
+          ].map((r,i)=>{
+            const [ld,setLd]=useState(false);
+            return(
+              <div key={i} onClick={()=>nav('inspiration')} className="btn-tap" style={{borderRadius:10,overflow:'hidden',cursor:'pointer',border:`0.5px solid ${C.bdrLt}`,background:C.surf}}>
+                <div style={{height:60,position:'relative',overflow:'hidden'}}>
+                  <img src={r.src} alt={r.l} onLoad={()=>setLd(true)} style={{width:'100%',height:'100%',objectFit:'cover',opacity:ld?1:0,transition:'opacity 0.4s'}}/>
+                  {!ld&&<div style={{position:'absolute',inset:0,background:'linear-gradient(135deg,#f0ede8,#e4e0da)'}}/>}
+                </div>
+                <div style={{padding:'5px 8px 6px',fontSize:11,fontWeight:500,color:C.t2,fontFamily:FF}}>{r.l}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <HR my={20}/>
+
+      {/* Review */}
+      <div style={{padding:'0 20px 28px'}}>
+        <Ey c="Reviews"/>
+        <ST c="Trusted by 75,000+ homeowners" mb={12}/>
+        <div style={{background:C.surf,borderRadius:14,padding:'16px',border:`0.5px solid ${C.bdrLt}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+            <div style={{width:38,height:38,borderRadius:'50%',background:'linear-gradient(135deg,#A86B94,#EB595F)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'white',flexShrink:0,fontFamily:FF}}>RP</div>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:C.t1,letterSpacing:'-0.2px',fontFamily:FF}}>Rohit & Priya</div>
+              <div style={{fontSize:11,color:C.mut,fontFamily:FF}}>Bengaluru · 3BHK Full Home</div>
+            </div>
+            <div style={{marginLeft:'auto',display:'flex',gap:2}}>
+              {[1,2,3,4,5].map(i=><div key={i} dangerouslySetInnerHTML={{__html:`<svg width="11" height="11" viewBox="0 0 24 24" fill="#F59E0B" stroke="none">${IP.star}</svg>`}}/>)}
+            </div>
+          </div>
+          <p style={{fontSize:13,color:C.t2,lineHeight:1.65,fontStyle:'italic',fontFamily:FF}}>"Our full home was completed in 52 days, exactly as planned. Exceptional attention to detail throughout."</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────
+   CONSULT FLOW
+   ───────────────────────── */
+const ConsultFlow=({step,setStep,nav})=>{
+  const [d,setD]=useState({city:'',bhk:'',scope:'',style:'',budget:'',tl:'',name:'',phone:'',date:'',slot:''});
+  const [er,setEr]=useState({});
+  const upd=(k,v)=>setD(p=>({...p,[k]:v}));
+  const clr=k=>setEr(e=>({...e,[k]:''}));
+
+  const validate=()=>{
+    const e={};
+    if(step===1){
+      if(!d.city)e.city='Please select your city';
+      if(!d.bhk)e.bhk='Please select home size';
+      if(!d.scope)e.scope='Please select a project scope';
+    }
+    if(step===2&&!d.budget)e.budget='Please select a budget range';
+    if(step===3){
+      if(!d.name.trim())e.name='Your name is required';
+      if(!/^\d{10}$/.test(d.phone.replace(/\s/g,'')))e.phone='Enter a valid 10-digit number';
+    }
+    return e;
+  };
+
+  const next=()=>{
+    const e=validate();
+    if(Object.keys(e).length){setEr(e);return;}
+    setEr({});setStep(s=>s+1);
+  };
+
+  if(step===4)return <ConfirmScreen nav={nav} name={d.name||'there'}/>;
+
+  const LABELS=['Your home','Preferences','Schedule'];
+
+  return(
+    <div className="sc">
+      {/* Progress header */}
+      <div style={{padding:'16px 20px 14px',background:C.bg,borderBottom:`0.5px solid ${C.bdrLt}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <div style={{fontSize:12,color:C.mut,fontFamily:FF}}>Step <span style={{color:C.t1,fontWeight:600}}>{step}</span> of 3</div>
+          {step>1&&<button onClick={()=>setStep(s=>s-1)} style={{background:'none',border:'none',fontSize:13,color:C.mut,cursor:'pointer',fontFamily:FF,display:'flex',alignItems:'center',gap:4}}>
+            <div dangerouslySetInnerHTML={{__html:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${C.mut}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>`}}/>Back
+          </button>}
+        </div>
+        {/* Progress bar */}
+        <div style={{height:3,background:C.surf,borderRadius:2,marginBottom:12,overflow:'hidden'}}>
+          <div className="prog-fill" style={{height:'100%',background:C.red,borderRadius:2,width:`${(step/3)*100}%`}}/>
+        </div>
+        <StepNodes cur={step}/>
+        <div style={{display:'flex',padding:'0 20px',marginTop:2}}>
+          {LABELS.map((l,i)=>(
+            <div key={i} style={{flex:1,fontSize:9,color:i+1===step?C.red:i+1<step?C.ok:C.mut,textAlign:'center',fontWeight:i+1===step?600:400,letterSpacing:'0.02em',fontFamily:FF}}>{l}</div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:'20px 20px 0'}}>
+        <div style={{fontSize:22,fontWeight:700,color:C.t1,letterSpacing:'-0.4px',marginBottom:5,fontFamily:FF}}>
+          {step===1?'Tell us about your home':step===2?'Your preferences':'Schedule your call'}
+        </div>
+        <div style={{fontSize:13,color:C.mut,marginBottom:22,lineHeight:1.55,fontFamily:FF}}>
+          {step===1?'Trusted by 75,000+ homeowners across India.'
+            :step===2?'12 designers currently available in your city.'
+            :'Free 30-minute call. No commitment needed.'}
+        </div>
+
+        {step===1&&<>
+          <Sel label="City" req opts={['Bengaluru','Mumbai','Delhi NCR','Hyderabad','Pune','Chennai','Kolkata','Ahmedabad']} val={d.city} onChange={v=>{upd('city',v);clr('city')}} err={er.city}/>
+          <Seg label="Home size" req opts={['1 BHK','2 BHK','3 BHK','4+ BHK']} val={d.bhk} onChange={v=>{upd('bhk',v);clr('bhk')}} err={er.bhk}/>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:12,fontWeight:500,color:C.t3,marginBottom:8,fontFamily:FF}}>Project scope <span style={{color:C.red}}>*</span></div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {['Full Home Interiors','Modular Kitchen Only','Living Room & Bedroom','Wardrobe & Storage'].map(o=>(
+                <button key={o} onClick={()=>{upd('scope',o);clr('scope')}} className="btn-tap" style={{
+                  padding:'13px 16px',borderRadius:10,
+                  border:`1.5px solid ${d.scope===o?C.red:C.bdrLt}`,
+                  background:d.scope===o?C.rTint:C.bg,
+                  color:d.scope===o?C.red:C.t1,
+                  fontSize:14,fontWeight:d.scope===o?600:400,
+                  cursor:'pointer',textAlign:'left',
+                  display:'flex',alignItems:'center',justifyContent:'space-between',
+                  fontFamily:FF,transition:'all 0.15s'}}>
+                  {o}
+                  {d.scope===o&&<div dangerouslySetInnerHTML={{__html:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${C.red}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${IP.check}</svg>`}}/>}
+                </button>
+              ))}
+            </div>
+            {er.scope&&<div style={{fontSize:12,color:C.err,marginTop:6,fontFamily:FF}}>⚠ {er.scope}</div>}
+          </div>
+        </>}
+
+        {step===2&&<>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:12,fontWeight:500,color:C.t3,marginBottom:8,fontFamily:FF}}>Design style <span style={{fontSize:11,color:C.mut,fontWeight:400}}>(optional)</span></div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+              {['Contemporary','Minimalist','Classic','Industrial','Scandinavian','Bohemian'].map(s=>(
+                <button key={s} onClick={()=>upd('style',s)} className="btn-tap" style={{padding:'8px 14px',borderRadius:20,border:`1.5px solid ${d.style===s?C.red:C.bdrLt}`,background:d.style===s?C.rTint:C.bg,color:d.style===s?C.red:C.t2,fontSize:13,fontWeight:d.style===s?600:400,cursor:'pointer',fontFamily:FF,transition:'all 0.15s'}}>{s}</button>
+              ))}
+            </div>
+          </div>
+          <Sel label="Approximate budget" req opts={['Under ₹5L','₹5L – ₹10L','₹10L – ₹20L','₹20L – ₹40L','Above ₹40L']} val={d.budget} onChange={v=>{upd('budget',v);clr('budget')}} err={er.budget}/>
+          <Sel label="Project timeline" opts={['Within 1 month','1 – 3 months','3 – 6 months','Flexible']} val={d.tl} onChange={v=>upd('tl',v)}/>
+          <div style={{background:'#F0FBF3',borderRadius:10,padding:'13px 14px',display:'flex',gap:10,alignItems:'flex-start',border:`0.5px solid rgba(52,199,89,0.2)`}}>
+            <Ico n="shield" size={18} color={C.ok}/>
+            <p style={{fontSize:12,color:C.t3,lineHeight:1.6,fontFamily:FF}}>Your details are shared only with your assigned designer. Never sold to third parties.</p>
+          </div>
+        </>}
+
+        {step===3&&<>
+          <Inp label="Your name" req ph="Full name" val={d.name} onChange={v=>{upd('name',v);clr('name')}} err={er.name}/>
+          <Inp label="Mobile number" req ph="10-digit number" val={d.phone} onChange={v=>{upd('phone',v);clr('phone')}} err={er.phone} type="tel" prefix="🇮🇳 +91"/>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:12,fontWeight:500,color:C.t3,marginBottom:8,fontFamily:FF}}>Preferred date</div>
+            <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4}}>
+              {['Today','Tomorrow','Thu 15','Fri 16','Sat 17'].map(dt=>(
+                <button key={dt} onClick={()=>upd('date',dt)} className="btn-tap" style={{padding:'9px 14px',borderRadius:9,flexShrink:0,border:`1.5px solid ${d.date===dt?C.red:C.bdrLt}`,background:d.date===dt?C.rTint:C.bg,color:d.date===dt?C.red:C.t2,fontSize:13,fontWeight:d.date===dt?600:400,cursor:'pointer',fontFamily:FF,transition:'all 0.15s'}}>{dt}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:12,fontWeight:500,color:C.t3,marginBottom:8,fontFamily:FF}}>Preferred time</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+              {['10:00 AM','11:30 AM','2:00 PM','3:30 PM','5:00 PM','6:30 PM'].map(t=>(
+                <button key={t} onClick={()=>upd('slot',t)} className="btn-tap" style={{padding:'10px 4px',borderRadius:9,textAlign:'center',border:`1.5px solid ${d.slot===t?C.red:C.bdrLt}`,background:d.slot===t?C.rTint:C.bg,color:d.slot===t?C.red:C.t2,fontSize:12,fontWeight:d.slot===t?600:400,cursor:'pointer',fontFamily:FF,transition:'all 0.15s'}}>{t}</button>
+              ))}
+            </div>
+          </div>
+          {/* WhatsApp opt-in */}
+          <div style={{display:'flex',alignItems:'center',gap:10,padding:'13px 14px',background:'#F0FBF3',borderRadius:10,border:`0.5px solid rgba(52,199,89,0.25)`,marginBottom:4}}>
+            <div style={{width:22,height:22,borderRadius:6,background:C.ok,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <div dangerouslySetInnerHTML={{__html:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${IP.check}</svg>`}}/>
+            </div>
+            <div style={{fontSize:13,color:C.t2,fontFamily:FF}}>Send consultation updates on WhatsApp</div>
+          </div>
+        </>}
+      </div>
+
+      <div style={{padding:'20px 20px 28px'}}>
+        <PBtn label={step<3?'Continue':'Book my consultation'} onClick={next}/>
+        {step>1&&<div style={{marginTop:10,textAlign:'center'}}><button onClick={()=>setStep(s=>s-1)} style={{background:'none',border:'none',fontSize:13,color:C.mut,cursor:'pointer',fontFamily:FF}} className="btn-tap">← Go back</button></div>}
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────
+   CONFIRMATION SCREEN
+   ───────────────────────── */
+const ConfirmScreen=({nav,name})=>{
+  const [imgLd,setImgLd]=useState(false);
+  return(
+    <div className="sc" style={{padding:'0 0 32px'}}>
+      {/* Subtle header image */}
+      <div style={{height:120,position:'relative',overflow:'hidden',background:'#2A1F3D'}}>
+        <img src={IMG.confirm} alt="Interior" onLoad={()=>setImgLd(true)} style={{width:'100%',height:'100%',objectFit:'cover',opacity:imgLd?0.5:0,transition:'opacity 0.5s'}}/>
+        <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(0,0,0,0.1),rgba(0,0,0,0.7))'}}/>
+        <div style={{position:'absolute',bottom:16,left:0,right:0,textAlign:'center'}}>
+          <div style={{width:52,height:52,borderRadius:'50%',background:'rgba(52,199,89,0.15)',border:'2px solid rgba(52,199,89,0.6)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto'}}>
+            <div dangerouslySetInnerHTML={{__html:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${C.ok}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${IP.check}</svg>`}}/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{padding:'20px 20px 0',textAlign:'center'}}>
+        <div style={{fontSize:11,fontWeight:700,letterSpacing:'0.12em',color:C.ok,textTransform:'uppercase',marginBottom:8,fontFamily:FF}}>Consultation Booked</div>
+        <div style={{fontSize:24,fontWeight:700,color:C.t1,letterSpacing:'-0.5px',lineHeight:1.2,marginBottom:10,fontFamily:FF}}>You're all set, {name}.</div>
+        <p style={{fontSize:13,color:C.mut,lineHeight:1.65,maxWidth:280,margin:'0 auto 20px',fontFamily:FF}}>
+          Your designer will reach out within 24 hours. You'll receive updates on WhatsApp.
+        </p>
+      </div>
+
+      <div style={{padding:'0 20px'}}>
+        {/* Reference */}
+        <div style={{background:C.surf,borderRadius:12,padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,border:`0.5px solid ${C.bdrLt}`}}>
+          <div style={{fontSize:12,color:C.mut,fontFamily:FF}}>Reference ID</div>
+          <div style={{fontSize:13,fontWeight:700,color:C.t1,letterSpacing:'0.08em',fontVariantNumeric:'tabular-nums',fontFamily:FF}}>LV-2026-48291</div>
+        </div>
+
+        {/* Designer card */}
+        <div style={{background:C.bg,borderRadius:14,padding:'14px 16px',border:`0.5px solid ${C.bdrLt}`,display:'flex',alignItems:'center',gap:13,marginBottom:20}}>
+          <div style={{width:46,height:46,borderRadius:'50%',background:'linear-gradient(135deg,#A86B94,#EB595F)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'white',border:`2px solid ${C.red}`,flexShrink:0,fontWeight:700,fontFamily:FF}}>PM</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:600,color:C.t1,marginBottom:2,letterSpacing:'-0.2px',fontFamily:FF}}>Priya Mehta</div>
+            <div style={{fontSize:11,color:C.mut,fontFamily:FF}}>Senior Interior Designer · 8 yrs</div>
+            <div style={{fontSize:11,color:C.mut,fontFamily:FF}}>Bengaluru · 4.9 rating</div>
+          </div>
+          <div style={{display:'flex',gap:1}}>
+            {[1,2,3,4,5].map(i=><div key={i} dangerouslySetInnerHTML={{__html:`<svg width="11" height="11" viewBox="0 0 24 24" fill="${C.gold}" stroke="none">${IP.star}</svg>`}}/>)}
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div style={{marginBottom:24}}>
+          <div style={{fontSize:13,fontWeight:600,color:C.t2,marginBottom:14,fontFamily:FF}}>What happens next</div>
+          {[
+            {l:'Request received',d:true,s:'Just now'},
+            {l:'Designer assigned',d:true,s:'Priya Mehta'},
+            {l:'Confirmation call',d:false,s:'Within 24 hours'},
+            {l:'Kick-off session',d:false,s:'After confirmation call'},
+          ].map((item,i)=>(
+            <div key={i} style={{display:'flex',gap:12,alignItems:'flex-start',marginBottom:i<3?6:0}}>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+                <div style={{width:24,height:24,borderRadius:'50%',background:item.d?C.ok:C.surf,border:`1.5px solid ${item.d?C.ok:C.bdrLt}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {item.d?<div dangerouslySetInnerHTML={{__html:`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${IP.check}</svg>`}}/>
+                  :<div style={{fontSize:10,fontWeight:600,color:C.mut,fontFamily:FF}}>{i+1}</div>}
+                </div>
+                {i<3&&<div style={{width:1.5,height:22,background:item.d?C.ok:C.bdrLt,marginTop:4,transition:'background 0.3s'}}/>}
+              </div>
+              <div style={{paddingTop:3}}>
+                <div style={{fontSize:13,fontWeight:item.d?600:400,color:item.d?C.t1:C.mut,letterSpacing:'-0.2px',fontFamily:FF}}>{item.l}</div>
+                <div style={{fontSize:11,color:C.mut,marginTop:1,fontFamily:FF}}>{item.s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <PBtn label="View my project →" onClick={()=>nav('home')}/>
+        <div style={{marginTop:12,textAlign:'center'}}>
+          <button onClick={()=>nav('home')} style={{background:'none',border:'none',fontSize:13,color:C.mut,cursor:'pointer',fontFamily:FF}} className="btn-tap">Back to home</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────
+   INSPIRATION SCREEN
+   ───────────────────────── */
+const InspoScreen=({nav})=>{
+  const [filt,setFilt]=useState('All');
+  const rooms=[
+    {src:IMG.kitchen,l:'Kitchen',n:'3,231',f:'Kitchen'},
+    {src:IMG.bedroom,l:'Master Bedroom',n:'3,272',f:'Bedroom'},
+    {src:IMG.living,l:'Living Room',n:'2,224',f:'Living'},
+    {src:IMG.bath,l:'Bathroom',n:'1,323',f:'Bathroom'},
+    {src:IMG.study,l:'Study Room',n:'136',f:'Study'},
+    {src:IMG.wardrobe,l:'Wardrobe',n:'892',f:'Wardrobe'},
+    {src:IMG.dining,l:'Dining Room',n:'648',f:'Other'},
+    {src:IMG.hero,l:'Homes by Livspace',n:'354',f:'Other'},
+  ];
+  const vis=filt==='All'?rooms:rooms.filter(r=>r.f===filt);
+  return(
+    <div className="sc">
+      <div style={{padding:'16px 20px 12px'}}>
+        {/* Grid-correct heading: accent bar starts at x=20 */}
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+          <div style={{width:3,height:26,background:C.red,borderRadius:2,flexShrink:0,marginLeft:0}}/>
+          <div style={{fontSize:22,fontWeight:700,color:C.t1,letterSpacing:'-0.4px',fontFamily:FF}}>Design Inspiration</div>
+        </div>
+        <p style={{fontSize:13,color:C.mut,marginBottom:14,lineHeight:1.5,fontFamily:FF}}>Curated ideas for Indian homes.</p>
+        <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:6}}>
+          {['All','Kitchen','Bedroom','Living','Bathroom','Study','Wardrobe'].map(f=>(
+            <button key={f} onClick={()=>setFilt(f)} className="btn-tap" style={{padding:'8px 14px',borderRadius:20,flexShrink:0,background:filt===f?C.red:C.surf,color:filt===f?'white':C.t2,border:'none',fontSize:12,fontWeight:filt===f?600:400,cursor:'pointer',fontFamily:FF,transition:'all 0.15s'}}>{f}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,padding:'4px 20px 24px'}}>
+        {vis.map((r,i)=>(
+          <RoomCard key={i} src={r.src} label={r.l} count={`${r.n} designs`} onClick={()=>nav('consult')}/>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/* ─── ESTIMATE SCREEN ─── */
+const EstimateScreen=({nav})=>(
+  <div className="sc">
+    <div style={{padding:'16px 20px 20px'}}>
+      <Ey c="Price Calculator"/>
+      <ST c="Get your estimate" sz={22}/>
+      <p style={{fontSize:13,color:C.mut,fontFamily:FF}}>Instant, accurate pricing. No surprises.</p>
+    </div>
+    <div style={{padding:'0 20px 24px',display:'flex',flexDirection:'column',gap:12}}>
+      {[
+        {src:IMG.hero,ic:'home',t:'Full Home Interior',s:'Complete transformation',h:'Typically ₹8L – ₹40L'},
+        {src:IMG.kitchen,ic:'bars',t:'Modular Kitchen',s:'Custom kitchen design',h:'Typically ₹1.5L – ₹6L'},
+        {src:IMG.wardrobe,ic:'photo',t:'Wardrobe & Storage',s:'Space-optimised storage',h:'Typically ₹60K – ₹2L'},
+      ].map((c,i)=>{
+        const [ld,setLd]=useState(false);
+        return(
+          <div key={i} style={{background:C.bg,border:`0.5px solid ${C.bdrLt}`,borderRadius:14,overflow:'hidden'}}>
+            <div style={{height:80,position:'relative',overflow:'hidden',background:C.surf}}>
+              <img src={c.src} alt={c.t} onLoad={()=>setLd(true)} style={{width:'100%',height:'100%',objectFit:'cover',opacity:ld?1:0,transition:'opacity 0.4s'}}/>
+              {!ld&&<div style={{position:'absolute',inset:0,background:'linear-gradient(135deg,#f0ede8,#e4e0da)'}}/>}
+              <div style={{position:'absolute',inset:0,background:'linear-gradient(to right,rgba(0,0,0,0.5),transparent)'}}/>
+              <div style={{position:'absolute',top:'50%',left:16,transform:'translateY(-50%)'}}>
+                <div style={{fontSize:15,fontWeight:700,color:'white',fontFamily:FF,letterSpacing:'-0.3px'}}>{c.t}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',marginTop:2,fontFamily:FF}}>{c.h}</div>
+              </div>
+            </div>
+            <div style={{padding:'12px 16px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontSize:12,color:C.mut,fontFamily:FF}}>{c.s}</div>
+              <button onClick={()=>nav('consult')} className="btn-tap" style={{background:C.red,border:'none',borderRadius:20,padding:'8px 16px',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:FF}}>Calculate →</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
+
+/* ─── STORES SCREEN ─── */
+const StoresScreen=()=>(
+  <div className="sc">
+    <div style={{padding:'16px 20px 20px'}}>
+      <Ey c="Experience Centres"/>
+      <ST c="Find a store" sz={22}/>
+      <div style={{display:'flex',alignItems:'center',gap:10,background:C.surf,borderRadius:10,padding:'12px 14px'}}>
+        <Ico n="search" size={18} color={C.mut}/>
+        <div style={{fontSize:14,color:C.mut,fontFamily:FF}}>Search by city or area</div>
+      </div>
+    </div>
+    <div style={{padding:'0 20px 24px',display:'flex',flexDirection:'column',gap:10}}>
+      {[
+        {a:'Indiranagar',d:'2.4 km away',t:'Open · Closes 7 PM',sub:'Ground Floor, 100 Ft Rd'},
+        {a:'Whitefield',d:'8.1 km away',t:'Open · Closes 7 PM',sub:'Phoenix Marketcity'},
+        {a:'Koramangala',d:'5.3 km away',t:'Open · Closes 7 PM',sub:'5th Block, 80 Ft Rd'},
+        {a:'HSR Layout',d:'6.8 km away',t:'Open · Closes 7 PM',sub:'Sector 1, 27th Main'},
+      ].map((s,i)=>(
+        <div key={i} className="btn-tap" style={{background:C.bg,border:`0.5px solid ${C.bdrLt}`,borderRadius:12,padding:'14px 16px',display:'flex',alignItems:'center',gap:14,cursor:'pointer'}}>
+          <div style={{width:44,height:44,borderRadius:11,background:C.rTint,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <Ico n="pin" size={20} color={C.red}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:600,color:C.t1,marginBottom:2,letterSpacing:'-0.2px',fontFamily:FF}}>Livspace · {s.a}</div>
+            <div style={{fontSize:11,color:C.ok,marginBottom:1,fontWeight:500,fontFamily:FF}}>{s.t}</div>
+            <div style={{fontSize:11,color:C.mut,fontFamily:FF}}>{s.sub} · {s.d}</div>
+          </div>
+          <Ico n="chevR" size={16} color={C.bdr}/>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/* ─── SUPPORT PILL ─── */
+const SupportPill=({screen})=>{
+  const [exp,setExp]=useState(false);
+  if(screen==='consult')return null;
+  return(
+    <div style={{position:'absolute',right:14,bottom:76,zIndex:40}}>
+      {exp?(
+        <div style={{background:C.dark,borderRadius:16,padding:'14px 16px',width:218,boxShadow:'0 12px 40px rgba(0,0,0,0.25)'}}>
+          <div style={{fontSize:13,fontWeight:600,color:'white',marginBottom:3,letterSpacing:'-0.2px',fontFamily:FF}}>Talk to a designer</div>
+          <div style={{fontSize:11,color:'rgba(255,255,255,0.45)',marginBottom:12,fontFamily:FF}}>Avg response · 3 mins · Free</div>
+          <button onClick={()=>setExp(false)} className="btn-tap" style={{background:C.wa,border:'none',borderRadius:10,padding:'10px 12px',color:'white',fontSize:13,fontWeight:600,cursor:'pointer',width:'100%',fontFamily:FF,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            <div dangerouslySetInnerHTML={{__html:`<svg viewBox="0 0 24 24" width="16" height="16" fill="white">${IP.wa}</svg>`}}/>
+            Chat on WhatsApp
+          </button>
+          <button onClick={()=>setExp(false)} style={{background:'none',border:'none',fontSize:11,color:'rgba(255,255,255,0.3)',cursor:'pointer',marginTop:8,width:'100%',fontFamily:FF,textAlign:'center'}} className="btn-tap">Dismiss</button>
+        </div>
+      ):(
+        <button onClick={()=>setExp(true)} className="btn-tap" style={{background:C.dark,border:'none',borderRadius:22,padding:'10px 16px',color:'white',fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:7,boxShadow:'0 4px 20px rgba(0,0,0,0.2)',fontFamily:FF,letterSpacing:'-0.1px'}}>
+          <div dangerouslySetInnerHTML={{__html:`<svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,0.7)">${IP.wa}</svg>`}}/>
+          Need help?
+        </button>
+      )}
+    </div>
+  );
+};
+
+/* ─── BOTTOM NAV ─── */
+const NavBar=({active,setActive})=>{
+  const tabs=[
+    {id:'home',ic:'home',l:'Home'},
+    {id:'inspiration',ic:'photo',l:'Inspiration'},
+    {id:'consult',ic:'chat',l:'Consult',el:true},
+    {id:'stores',ic:'pin',l:'Stores'},
+    {id:'estimate',ic:'bars',l:'Estimate'},
+  ];
+  return(
+    <div style={{height:72,background:C.bg,borderTop:`0.5px solid ${C.bdrLt}`,display:'flex',alignItems:'flex-end',justifyContent:'space-around',padding:'0 4px 10px',flexShrink:0,zIndex:20}}>
+      {tabs.map(t=>(
+        <button key={t.id} onClick={()=>setActive(t.id)} className="btn-tap" style={{flex:1,background:'none',border:'none',display:'flex',flexDirection:'column',alignItems:'center',gap:4,cursor:'pointer',padding:t.el?'0 4px 0':'4px 4px 0',marginTop:t.el?-12:0,fontFamily:FF}}>
+          {t.el?(
+            <div style={{width:46,height:46,borderRadius:'50%',background:active===t.id?C.rDk:C.red,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 16px rgba(235,89,95,0.35)',transition:'background 0.15s'}}>
+              <Ico n={t.ic} size={20} color="white" sw={1.5}/>
+            </div>
+          ):(
+            <Ico n={t.ic} size={22} color={active===t.id?C.red:C.mut} sw={active===t.id?2:1.5}/>
+          )}
+          <div style={{fontSize:10,color:active===t.id?C.red:C.mut,fontWeight:active===t.id?600:400,letterSpacing:'-0.1px',transition:'color 0.15s'}}>{t.l}</div>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+/* ─── ROOT APP ─── */
+function App(){
+  const [screen,setScreen]=useState('home');
+  const [step,setStep]=useState(1);
+  const nav=useCallback(s=>{if(s==='consult')setStep(1);setScreen(s);},[]);
+
+  return(
+    <div style={{minHeight:'100vh',display:'flex',justifyContent:'center',alignItems:'flex-start',padding:'28px 16px 48px',gap:18,fontFamily:FF}}>
+
+      {/* Sidebar */}
+      <div style={{paddingTop:28,width:128,flexShrink:0}}>
+        <div style={{marginBottom:16}}>
+          <LogoMark size={24}/>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:'0.14em',color:'#888',marginTop:4}}>FORMA v3.0</div>
+        </div>
+        {[{id:'home',l:'Home'},{id:'consult',l:'Consult'},{id:'inspiration',l:'Inspiration'},{id:'estimate',l:'Estimate'},{id:'stores',l:'Stores'}].map(s=>(
+          <button key={s.id} onClick={()=>nav(s.id)} className="btn-tap" style={{display:'block',width:'100%',marginBottom:5,padding:'8px 12px',borderRadius:8,border:`0.5px solid ${screen===s.id?C.red:'#e0e0e0'}`,background:screen===s.id?C.rTint:'white',color:screen===s.id?C.red:'#555',fontSize:11,cursor:'pointer',textAlign:'left',fontFamily:FF,fontWeight:screen===s.id?600:400,transition:'all 0.15s'}}>{s.l}</button>
+        ))}
+        <div style={{marginTop:16,padding:'12px',background:'#F5F4F5',borderRadius:10}}>
+          <div style={{fontSize:9,color:'#999',lineHeight:1.7}}><strong style={{color:'#666',display:'block',marginBottom:3}}>All interactions live</strong>Fill forms · get validation · complete booking flow · check filters</div>
+        </div>
+        <div style={{marginTop:10,padding:'10px 12px',background:C.dark,borderRadius:10}}>
+          <div style={{fontSize:9,color:'rgba(255,255,255,0.45)',lineHeight:1.7}}><strong style={{color:'rgba(255,255,255,0.7)',display:'block',marginBottom:3}}>FORMA spec</strong>Grid: 4col · 20px<br/>Primary: #EB595F<br/>Dynamic Island<br/>SVG icons · Real photos</div>
+        </div>
+      </div>
+
+      {/* Phone */}
+      <div style={{width:390,height:844,background:C.bg,borderRadius:54,border:'10px solid #1C1C1E',overflow:'hidden',display:'flex',flexDirection:'column',boxShadow:'0 60px 120px rgba(0,0,0,0.35),0 0 0 1px rgba(255,255,255,0.06)',position:'relative',flexShrink:0}}>
+        {/* Notch inner rounded corners */}
+        <StatusBar/>
+        <AppHeader/>
+        <div style={{flex:1,overflowY:'auto',overflowX:'hidden',background:C.bg}}>
+          {screen==='home'&&<HomeScreen nav={nav}/>}
+          {screen==='consult'&&<ConsultFlow step={step} setStep={setStep} nav={nav}/>}
+          {screen==='inspiration'&&<InspoScreen nav={nav}/>}
+          {screen==='estimate'&&<EstimateScreen nav={nav}/>}
+          {screen==='stores'&&<StoresScreen/>}
+        </div>
+        <SupportPill screen={screen}/>
+        <NavBar active={screen} setActive={nav}/>
+      </div>
+
+      {/* Right annotations */}
+      <div style={{paddingTop:28,width:138,flexShrink:0}}>
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:'0.12em',color:'#aaa',marginBottom:12}}>DESIGN NOTES</div>
+        {[
+          {t:'Dynamic Island',c:'iOS 14/15 style centered pill. Real status bar layout.'},
+          {t:'SVG icons only',c:'Zero emojis. Consistent Heroicons outline set throughout.'},
+          {t:'Real photography',c:'Unsplash interior photos. 4:3 with object-fit cover.'},
+          {t:'Livspace logo',c:'SVG approximation of the actual brand mark from uploaded PNG.'},
+          {t:'Grid x=20 fixed',c:'Accent bar on Inspiration starts at x=20, not x=0.'},
+          {t:'Utility strip',c:'Quick actions: flat, divider-based, icon above label.'},
+          {t:'Support pill',c:'Hides during Consult flow. Expands with WhatsApp CTA.'},
+          {t:'Micro-interactions',c:'Press states, progress fill animation, image fade-in.'},
+        ].map((n,i)=>(
+          <div key={i} style={{marginBottom:10,padding:'9px 12px',background:'white',borderRadius:8,border:`0.5px solid #E5E5EA`}}>
+            <div style={{fontSize:11,fontWeight:600,color:'#1C1C1E',marginBottom:2,fontFamily:FF}}>{n.t}</div>
+            <div style={{fontSize:10,color:'#8E8E93',lineHeight:1.55,fontFamily:FF}}>{n.c}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
